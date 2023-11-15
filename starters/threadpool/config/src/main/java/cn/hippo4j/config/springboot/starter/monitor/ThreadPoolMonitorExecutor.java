@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,11 +65,13 @@ public class ThreadPoolMonitorExecutor implements ApplicationRunner, DisposableB
         }
         log.info("Start monitoring the running status of dynamic thread pool.");
         threadPoolMonitors = new ArrayList<>();
+        // 使用建造者模式创建线程池——值得学习，优点：代码优雅，对象一致性高
         collectScheduledExecutor = new ScheduledThreadPoolExecutor(
                 1,
                 ThreadFactoryBuilder.builder().daemon(true).prefix("client.scheduled.collect.data").build());
         // Get dynamic thread pool monitoring component.
         List<String> collectTypes = Arrays.asList(monitor.getCollectTypes().split(","));
+        // 从容器中获取线程池监视器
         ApplicationContextHolder.getBeansOfType(ThreadPoolMonitor.class).forEach((beanName, bean) -> threadPoolMonitors.add(bean));
         Collection<DynamicThreadPoolMonitor> dynamicThreadPoolMonitors =
                 ServiceLoaderRegistry.getSingletonServiceInstances(DynamicThreadPoolMonitor.class);

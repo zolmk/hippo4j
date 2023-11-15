@@ -137,6 +137,7 @@ public class ReflectUtil {
         } else {
             value = getDefaultValue(fieldType);
         }
+        // TODO：修改可访问性后未进行还原
         setAccessible(field);
         try {
             field.set(obj instanceof Class ? null : obj, value);

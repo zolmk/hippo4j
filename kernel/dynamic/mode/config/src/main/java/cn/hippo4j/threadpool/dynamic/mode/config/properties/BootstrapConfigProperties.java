@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 动态线程池在这个地方进行配置（bootstrap.yaml）
  * Bootstrap core properties.
  */
 @Getter

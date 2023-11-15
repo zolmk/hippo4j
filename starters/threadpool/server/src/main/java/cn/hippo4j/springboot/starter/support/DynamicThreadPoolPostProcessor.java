@@ -97,12 +97,15 @@ public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
                 log.error("Failed to create dynamic thread pool in annotation mode.", ex);
                 return bean;
             }
+            // 如果这个动态线程池是使用了适配器模式，则这里会解开
             ThreadPoolExecutor dynamicThreadPoolExecutor = DynamicThreadPoolAdapterChoose.unwrap(bean);
             if ((dynamicThreadPoolExecutor) == null) {
                 dynamicThreadPoolExecutor = (DynamicThreadPoolExecutor) bean;
             }
             ThreadPoolExecutor remoteThreadPoolExecutor = fillPoolAndRegister(((DynamicThreadPoolExecutor) dynamicThreadPoolExecutor).getThreadPoolId(), dynamicThreadPoolExecutor);
+            // 如果上面unwrap成功，则这里会进行替换
             DynamicThreadPoolAdapterChoose.replace(bean, remoteThreadPoolExecutor);
+
             subscribeConfig(((DynamicThreadPoolExecutor) dynamicThreadPoolExecutor).getThreadPoolId());
             return DynamicThreadPoolAdapterChoose.match(bean) ? bean : remoteThreadPoolExecutor;
         }
@@ -133,7 +136,9 @@ public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
         queryStrMap.put(NAMESPACE, properties.getNamespace());
         ThreadPoolParameterInfo threadPoolParameterInfo = new ThreadPoolParameterInfo();
         try {
+            // 获取线程池配置
             Result result = httpAgent.httpGetByConfig(Constants.CONFIG_CONTROLLER_PATH, null, queryStrMap, HTTP_EXECUTE_TIMEOUT);
+
             if (result.isSuccess() && result.getData() != null) {
                 String resultJsonStr = JSONUtil.toJSONString(result.getData());
                 threadPoolParameterInfo = JSONUtil.parseObject(resultJsonStr, ThreadPoolParameterInfo.class);
@@ -142,6 +147,7 @@ public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
                     registerNotifyAlarm(threadPoolParameterInfo);
                 }
             } else {
+                // 该线程池在远端没有配置信息
                 // DynamicThreadPool configuration undefined in server
                 DynamicThreadPoolRegisterParameter parameterInfo = DynamicThreadPoolRegisterParameter.builder()
                         .threadPoolId(threadPoolId)
@@ -161,6 +167,7 @@ public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
                 DynamicThreadPoolRegisterWrapper registerWrapper = DynamicThreadPoolRegisterWrapper.builder()
                         .parameter(parameterInfo)
                         .build();
+                // 下面的方法可能会抛异常
                 GlobalThreadPoolManage.dynamicRegister(registerWrapper);
             }
         } catch (Exception ex) {
@@ -179,9 +186,12 @@ public final class DynamicThreadPoolPostProcessor implements BeanPostProcessor {
      * @param threadPoolParameterInfo thread-pool parameter info
      */
     private void threadPoolParamReplace(ThreadPoolExecutor executor, ThreadPoolParameterInfo threadPoolParameterInfo) {
+        // 根据配置信息获取阻塞队列
         BlockingQueue workQueue = BlockingQueueTypeEnum.createBlockingQueue(threadPoolParameterInfo.getQueueType(), threadPoolParameterInfo.getCapacity());
+        // 通过反射的方式设置
         ReflectUtil.setFieldValue(executor, "workQueue", workQueue);
         // fix https://github.com/opengoofy/hippo4j/issues/1063
+
         ThreadPoolExecutorUtil.safeSetPoolSize(executor, threadPoolParameterInfo.corePoolSizeAdapt(), threadPoolParameterInfo.maximumPoolSizeAdapt());
         executor.setKeepAliveTime(threadPoolParameterInfo.getKeepAliveTime(), TimeUnit.SECONDS);
         executor.allowCoreThreadTimeOut(EnableEnum.getBool(threadPoolParameterInfo.getAllowCoreThreadTimeOut()));

@@ -35,6 +35,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 从网卡上获取IPv4格式的ip
  * Inet utils.<br>
  * Refer to org.springframework.cloud.commons.util.InetUtils<br>
  */
@@ -70,13 +71,19 @@ public class InetUtils implements Closeable {
         return hostInfo;
     }
 
+    /**
+     * 发现首个非本地回环ipv4地址
+     * @return
+     */
     public InetAddress findFirstNonLoopbackAddress() {
         InetAddress result = null;
         try {
             int lowest = Integer.MAX_VALUE;
+            // 遍历网卡
             for (Enumeration<NetworkInterface> nics = NetworkInterface
                     .getNetworkInterfaces(); nics.hasMoreElements();) {
                 NetworkInterface ifc = nics.nextElement();
+                // 网卡处于启用状态
                 if (ifc.isUp()) {
                     this.log.trace("Testing interface: " + ifc.getDisplayName());
                     if (ifc.getIndex() < lowest || result == null) {
@@ -85,9 +92,11 @@ public class InetUtils implements Closeable {
                         continue;
                     }
                     if (!ignoreInterface(ifc.getDisplayName())) {
+                        // 枚举支持的IP层网络协议
                         for (Enumeration<InetAddress> addrs = ifc
                                 .getInetAddresses(); addrs.hasMoreElements();) {
                             InetAddress address = addrs.nextElement();
+                            // ipv4 非本地回环地址  优先地址
                             if (address instanceof Inet4Address
                                     && !address.isLoopbackAddress()
                                     && isPreferredAddress(address)) {
@@ -147,6 +156,7 @@ public class InetUtils implements Closeable {
 
     public HostInfo convertAddress(final InetAddress address) {
         HostInfo hostInfo = new HostInfo();
+        // 通过线程池的方式来解决获取主机名可能存在阻塞的问题。初看无用，再看真秒
         Future<String> result = this.executorService.submit(address::getHostName);
         String hostname;
         try {

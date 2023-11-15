@@ -67,14 +67,21 @@ public class DynamicThreadPoolConfigService extends AbstractDynamicThreadPoolSer
         return dynamicThreadPoolExecutor;
     }
 
+
     private ThreadPoolExecutor registerExecutor(DynamicThreadPoolRegisterWrapper registerWrapper) {
         DynamicThreadPoolRegisterParameter registerParameter = registerWrapper.getParameter();
+        // 检查线程池参数
         checkThreadPoolParameter(registerParameter);
+
         String threadPoolId = registerParameter.getThreadPoolId();
         try {
+            // TODO：方法名不合理
             failDynamicThreadPoolRegisterWrapper(registerWrapper);
+            // 通过HTTP agent 注册线程池
+            // registerWrapper 最终将被转化为 JSON 字符串
             Result registerResult = httpAgent.httpPost(REGISTER_DYNAMIC_THREAD_POOL_PATH, registerWrapper);
             if (registerResult == null || !registerResult.isSuccess()) {
+                // TODO：注册时没有重试机制
                 throw new RuntimeException("Dynamic thread pool registration returns error."
                         + Optional.ofNullable(registerResult).map(Result::getMessage).orElse(""));
             }
@@ -82,6 +89,7 @@ public class DynamicThreadPoolConfigService extends AbstractDynamicThreadPoolSer
             log.error("Dynamic thread pool registration execution error: {}", threadPoolId, ex);
             throw ex;
         }
+        // 通过json工具实现转化，效率低
         ThreadPoolParameterInfo parameter = JSONUtil.parseObject(JSONUtil.toJSONString(registerParameter), ThreadPoolParameterInfo.class);
         ThreadPoolExecutor dynamicThreadPoolExecutor = buildDynamicThreadPoolExecutor(registerParameter);
         ThreadPoolExecutorHolder executorHolder = new ThreadPoolExecutorHolder(threadPoolId, dynamicThreadPoolExecutor, null);
@@ -106,6 +114,7 @@ public class DynamicThreadPoolConfigService extends AbstractDynamicThreadPoolSer
     }
 
     private void checkThreadPoolParameter(DynamicThreadPoolRegisterParameter registerParameter) {
+        //TODO: 此处应该先判断一下线程池id非空
         Assert.isTrue(!registerParameter.getThreadPoolId().contains("+"), "The thread pool contains sensitive characters.");
     }
 
